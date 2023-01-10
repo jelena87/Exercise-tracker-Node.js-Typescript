@@ -1,5 +1,5 @@
 export class Exercise {
-    userId: number;
+    userId?: number;
 	duration: number;
 	description: string;
 	date: string;

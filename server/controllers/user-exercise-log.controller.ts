@@ -1,5 +1,6 @@
 let db = require("../../db");
 import { Request, Response } from 'express';
+import { Exercise } from '../models/exercise.model';
 import { UserExerciseLog } from '../models/user-exercise-log.model';
 import { User } from '../models/user.model';
 import { getUserById } from './user.controller';
@@ -31,7 +32,7 @@ export const getUserExerciseLog = (req: Request, res: Response) => {
 			res.status(200);
 			res.json({'id': result.id, 'username': result.username, 'count': 0, "log": []});
 		} else {
-			const log = data.filter((data: any) => {
+			const log: Exercise[] = data.filter((data: any) => {
 				let date = new Date(data.date);
                 const exerciseDate = date.getTime();
                 if(from){
@@ -53,8 +54,9 @@ export const getUserExerciseLog = (req: Request, res: Response) => {
 				description: l.description,
 				date: l.date
 			}));
+            const exerciseLog = new UserExerciseLog(data[0].id, data[0].username, data[0].count, log);
 			res.status(200);
-			res.json({'_id': data[0].id, 'username': data[0].username, 'count': data[0].count, "log": log});
+			res.json(exerciseLog);
 		}	
 	});
 }
