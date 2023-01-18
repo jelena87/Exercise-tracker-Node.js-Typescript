@@ -13,16 +13,19 @@ export const addExercise = (req: Request, res: Response) => {
 	if (!req.body.duration){
 		errors.push("No duration specified");
 	}
+    let formattedDate;
 	// if date is not set use today's date
 	if (!req.body.date){
 		const today = new Date(); 
-		req.body.date = today.toDateString();
+        const year = today.toLocaleString("default", { year: "numeric" });
+        const month = today.toLocaleString("default", { month: "2-digit" });
+        const day = today.toLocaleString("default", { day: "2-digit" });
+        formattedDate = year + "-" + month + "-" + day;
 	} else {
 		if (!isValidDate(req.body.date)) {
 			errors.push("Please enter date in a format YYYY-MM-DD");
 		}
-		const inputDate = new Date(req.body.date); 
-		req.body.date = inputDate.toDateString();
+        formattedDate = req.body.date;
 	}
 	if (errors.length){
 		res.status(400).json({"error": errors.join(",")});
@@ -32,7 +35,7 @@ export const addExercise = (req: Request, res: Response) => {
 		userId: +req.params._id,
 		description: req.body.description,
 		duration: +req.body.duration,
-		date: req.body.date
+		date: formattedDate
 	};
 	const sql =
 	`INSERT INTO exercise 
@@ -44,7 +47,11 @@ export const addExercise = (req: Request, res: Response) => {
 			res.status(400).json({"error": err.message});
 			return;
 		}
-        const exercise = new Exercise(data.userId, data.duration, data.description, data.date)
+        // saved date string format YYYY-MM-DD transform with toDateString method to achieve expected
+        // output
+        const inputDate = new Date(data.date); 
+		const date = inputDate.toDateString();
+        const exercise = new Exercise(data.userId, data.duration, data.description, date);
         res.status(201);
 		res.json(exercise);
 	});

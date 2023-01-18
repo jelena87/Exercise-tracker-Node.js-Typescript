@@ -19,6 +19,7 @@ export const getUserExerciseLog = (req: Request, res: Response) => {
 	FROM exercise e
 	JOIN user u ON u.id = e.userId
 	WHERE u.id = :userId
+    ORDER BY date(e.date) DESC
 	LIMIT ?`;
 	const params = [req.params._id, nonNullLimit];
 	db.all(sql, params, async (err: Error, data: UserExerciseLog[]) => {
@@ -35,6 +36,7 @@ export const getUserExerciseLog = (req: Request, res: Response) => {
 			const log: Exercise[] = data.filter((data: any) => {
 				let date = new Date(data.date);
                 const exerciseDate = date.getTime();
+                data.date = date.toDateString();
                 if(from){
                     fromDate = transformDate(from, exerciseDate);
                 }
