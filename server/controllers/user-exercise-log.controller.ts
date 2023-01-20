@@ -6,22 +6,15 @@ import { User } from '../models/user.model';
 import { getUserById } from './user.controller';
 
 export const getUserExerciseLog = (req: Request, res: Response) => {
-    const { from, to, limit } = req.query;
-	let fromDate: number;
-	let toDate: number;
+    const { limit } = req.query;
+    
 	// if limit is 0 or undefined return first 100 records as limit
 	let nonNullLimit = limit === '0' || limit === undefined ? 100 : limit;
 
-	// sql needs to return count of all exercises record even when limit is set
-	const sql =
-	`SELECT (
-		SELECT COUNT(*) FROM exercise WHERE userId = :userId) as count, u.id, u.username, e.*
-	FROM exercise e
-	JOIN user u ON u.id = e.userId
-	WHERE u.id = :userId
-    ORDER BY date(e.date) DESC
-	LIMIT ?`;
-	const params = [req.params._id, nonNullLimit];
+    // define what data you need from db based on req.query
+    const sql = sqlDeffinition(req);
+    const params = getSqlParams(req, nonNullLimit);
+
 	db.all(sql, params, async (err: Error, data: UserExerciseLog[]) => {
 		if (err) {
 			res.status(400).json({'error': 'There is no exercises logs for that user!'});
@@ -35,21 +28,7 @@ export const getUserExerciseLog = (req: Request, res: Response) => {
 		} else {
 			const log: Exercise[] = data.filter((data: any) => {
 				let date = new Date(data.date);
-                const exerciseDate = date.getTime();
                 data.date = date.toDateString();
-                if(from){
-                    fromDate = transformDate(from, exerciseDate);
-                }
-                if(to){
-                    toDate = transformDate(to, exerciseDate)
-                }
-                if (fromDate && toDate) {
-                    return (exerciseDate >= fromDate && exerciseDate <= toDate);
-                } else if (fromDate) {
-                    return exerciseDate >= fromDate;
-                } else if (toDate) {
-                    return exerciseDate <= toDate
-                } 
 				return data.date;
 			}).map((l: any) => ({
                 duration: l.duration,
@@ -63,15 +42,63 @@ export const getUserExerciseLog = (req: Request, res: Response) => {
 	});
 }
 
-function transformDate(date: string | any, exerciseDate: number) {
-    const matches = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(date);
-    if (matches === null) {
-        return exerciseDate;
+function sqlDeffinition(req: Request) {
+    const { from, to } = req.query;
+    let sql;
+    if (from && to) {
+        sql =
+        `SELECT (
+            SELECT COUNT(*) FROM exercise WHERE userId = :userId) as count, u.id, u.username, e.*
+        FROM exercise e
+        JOIN user u ON u.id = e.userId
+        WHERE u.id = :userId
+        AND e.date between ? and ?
+        ORDER BY date(e.date) ASC
+        LIMIT ?`;
+    } else if (from) {
+        sql =
+        `SELECT (
+            SELECT COUNT(*) FROM exercise WHERE userId = :userId) as count, u.id, u.username, e.*
+        FROM exercise e
+        JOIN user u ON u.id = e.userId
+        WHERE u.id = :userId
+        AND e.date >= ?
+        ORDER BY date(e.date) ASC
+        LIMIT ?`;
+    } else if (to) {
+        sql =
+        `SELECT (
+            SELECT COUNT(*) FROM exercise WHERE userId = :userId) as count, u.id, u.username, e.*
+        FROM exercise e
+        JOIN user u ON u.id = e.userId
+        WHERE u.id = :userId
+        AND e.date <= ?
+        ORDER BY date(e.date) ASC
+        LIMIT ?`;
+    } else {
+        sql =
+        `SELECT (
+            SELECT COUNT(*) FROM exercise WHERE userId = :userId) as count, u.id, u.username, e.*
+        FROM exercise e
+        JOIN user u ON u.id = e.userId
+        WHERE u.id = :userId
+        ORDER BY date(e.date) ASC
+        LIMIT ?`;
     }
-	const d: number = +matches![3];
-    const m: number = +matches![2] - 1;
-    const y: number = +matches![1];
-  
-	let composedDate = new Date(y, m, d);
-    return composedDate.getTime();
+    return sql;
+}
+
+function getSqlParams(req: Request, nonNullLimit: any) {
+    const { from, to } = req.query;
+    let params;
+    if (from && to) {
+        params = [req.params._id, from, to, nonNullLimit];
+    } else if (from) {
+        params = [req.params._id, from, nonNullLimit];
+    } else if (to) {
+        params = [req.params._id, to, nonNullLimit];
+    } else {
+        params = [req.params._id, nonNullLimit];
+    }
+    return params;
 }
